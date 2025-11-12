@@ -1,0 +1,16 @@
+[
+  {
+    "first_name": "Sarah",
+    "last_name": "Johnson",
+    "email": "sarah@example.com",
+    "application_date": "2025-04-15",
+    "appointments": []
+  },
+  {
+    "first_name": "Mike",
+    "last_name": "Chen",
+    "email": "mike@example.com",
+    "application_date": "2025-03-22",
+    "appointments": []
+  }
+]

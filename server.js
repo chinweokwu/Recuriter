@@ -1,12 +1,6 @@
 // server.js
 import express from 'express';
 import cors from 'cors';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { join } from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = join(__filename, '..');
 
 const app = express();
 const PORT = 8000;
@@ -14,41 +8,35 @@ const PORT = 8000;
 app.use(cors());
 app.use(express.json());
 
-const DB_PATH = join(__dirname, 'candidates.json');
-
-if (!existsSync(DB_PATH)) {
-  writeFileSync(DB_PATH, JSON.stringify([], null, 2));
-  console.log('candidates.json created');
-}
-
-const readDB = () => JSON.parse(readFileSync(DB_PATH, 'utf-8'));
-const writeDB = (data) => writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
+// === IN-MEMORY DATABASE (OBJECT) ===
+let candidates = [
+  {
+    first_name: "Sarah",
+    last_name: "Johnson",
+    email: "sarah@example.com",
+    application_date: "2025-04-15",
+    appointments: []
+  }
+];
 
 // === GET USER INFO ===
 app.post('/recruiting/exampleApi/get-user-info', (req, res) => {
   const { first_name, last_name } = req.body;
 
   if (!first_name || !last_name) {
-    return res.status(200).json({
-      fallback: true,
-      error: 'Missing first_name or last_name'
-    });
+    return res.json({ fallback: true, error: 'Missing name' });
   }
 
-  const candidates = readDB();
   const candidate = candidates.find(c =>
     c.first_name.toLowerCase() === first_name.toLowerCase() &&
     c.last_name.toLowerCase() === last_name.toLowerCase()
   );
 
   if (!candidate) {
-    return res.status(200).json({
-      fallback: true,
-      error: 'Candidate not found'
-    });
+    return res.json({ fallback: true, error: 'Candidate not found' });
   }
 
-  res.status(200).json({
+  res.json({
     fallback: false,
     application_date: candidate.application_date,
     email: candidate.email || 'paulcmorah@gmail.com'
@@ -57,19 +45,13 @@ app.post('/recruiting/exampleApi/get-user-info', (req, res) => {
 
 // === BOOK APPOINTMENT ===
 app.post('/recruiting/exampleApi/book-appointment', (req, res) => {
-  let { first_name, last_name, email, datetime } = req.body;
-
-  // FORCE EMAIL
-  email = 'paulcmorah@gmail.com';
+  const { first_name, last_name, datetime } = req.body;
+  const email = 'paulcmorah@gmail.com';
 
   if (!first_name || !last_name || !datetime) {
-    return res.status(200).json({
-      fallback: true,
-      error: 'Missing required fields'
-    });
+    return res.json({ fallback: true, error: 'Missing fields' });
   }
 
-  const candidates = readDB();
   let candidate = candidates.find(c =>
     c.first_name.toLowerCase() === first_name.toLowerCase() &&
     c.last_name.toLowerCase() === last_name.toLowerCase()
@@ -92,15 +74,11 @@ app.post('/recruiting/exampleApi/book-appointment', (req, res) => {
     status: 'confirmed'
   });
 
-  writeDB(candidates);
-
-  res.status(200).json({
+  res.json({
     fallback: false,
-    message: 'Appointment booked',
+    message: 'Booked',
     email,
-    datetime,
-    first_name,
-    last_name
+    datetime
   });
 });
 
@@ -109,35 +87,25 @@ app.put('/recruiting/exampleApi/update-candidate', (req, res) => {
   const { first_name, last_name, update } = req.body;
 
   if (!first_name || !last_name || !update || typeof update !== 'object') {
-    return res.status(200).json({
-      fallback: true,
-      error: 'Invalid request body'
-    });
+    return res.json({ fallback: true, error: 'Invalid body' });
   }
 
-  const candidates = readDB();
   const index = candidates.findIndex(c =>
     c.first_name.toLowerCase() === first_name.toLowerCase() &&
     c.last_name.toLowerCase() === last_name.toLowerCase()
   );
 
   if (index === -1) {
-    return res.status(200).json({
-      fallback: true,
-      error: 'Candidate not found'
-    });
+    return res.json({ fallback: true, error: 'Not found' });
   }
 
-  // Apply updates
   if (update.email) candidates[index].email = update.email;
   if (update.first_name) candidates[index].first_name = update.first_name;
   if (update.last_name) candidates[index].last_name = update.last_name;
 
-  writeDB(candidates);
-
-  res.status(200).json({
+  res.json({
     fallback: false,
-    message: 'Candidate updated',
+    message: 'Updated',
     candidate: candidates[index]
   });
 });
@@ -145,20 +113,20 @@ app.put('/recruiting/exampleApi/update-candidate', (req, res) => {
 // === HEALTH CHECK ===
 app.get('/', (req, res) => {
   res.json({
-    status: 'Bland AI Webhook Running',
-    port: PORT,
+    status: 'Bland AI Webhook Running (In-Memory DB)',
+    candidates_count: candidates.length,
     time: new Date().toISOString(),
     endpoints: [
       "POST /recruiting/exampleApi/get-user-info",
       "POST /recruiting/exampleApi/book-appointment",
       "PUT /recruiting/exampleApi/update-candidate"
     ],
-    note: "All responses include 'fallback: true/false' for Bland AI conditions"
+    note: "Data stored in memory. Resets on redeploy."
   });
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
-  console.log(`All emails → paulcmorah@gmail.com`);
-  console.log(`Fallback logic: 200 OK with fallback: true/false`);
+  console.log(`LIVE: https://recuriter.onrender.com`);
+  console.log(`In-memory DB active — no file storage`);
+  console.log(`Email forced: paulcmorah@gmail.com`);
 });
